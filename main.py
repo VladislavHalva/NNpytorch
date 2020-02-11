@@ -1,31 +1,32 @@
-import torch
 import numpy as np
-import matplotlib.pyplot as plt
+
 import torch
+from torch import utils
+from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
+
+import torchvision
+from torchvision import transforms, datasets
+
+### Dataset settings ###
+
+train = datasets.MNIST('', train=True, download=True,
+                       transform=transforms.Compose([
+                           transforms.ToTensor()
+                       ]))
+
+test = datasets.MNIST('', train=False, download=True,
+                      transform=transforms.Compose([
+                          transforms.ToTensor()
+                      ]))
+
+trainSet = torch.utils.data.DataLoader(train, batch_size=10, shuffle=True)
+testSet = torch.utils.data.DataLoader(test, batch_size=10, shuffle=True)
 
 
-def main():
-    data_x = np.asarray([1, 2, 2.5, 2.7, 3, 3.7, 4.0, 4.2, 4.4, 5, 6, 7],
-                        dtype=np.float32) / 7
-    data_y = np.asarray([1.3, 1.5, 4.0, 3.0, 3.9, 4.9, 4.3, 5.8, 5.2, 5.2, 5.5, 5.4],
-                        dtype=np.float32) / 7
-    x = plt.plot(data_x, data_y, marker='o', color='r', ls='')
-
-    torch_x = torch.from_numpy(data_x)
-    torch_y = torch.from_numpy(data_y)
-
-    z = torch.FloatTensor(2)
-    z[...] = 0
-
-    arr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    odd = arr[::1]
-    print(odd)
-
-
-main()
-
+### NN Definition ###
 
 class Net(nn.Module):
 
@@ -34,7 +35,54 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(28 * 28, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 64)
-        self.fc4 = nn.Linear(64, 64)
+        self.fc4 = nn.Linear(64, 10)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = self.fc4(x)
+
+        return F.log_softmax(x, dim=1)
+
+
+X = torch.rand((28, 28))
+X = X.view(-1, 28 * 28)
+
+net = Net()
+output = net(X)
+
+optimizer = optim.Adam(net.parameters(), lr=0.001)
+
+# iterations through full dataset
+EPOCHS = 3
+
+for epoch in range(EPOCHS):
+    for data in trainSet:
+        X, y = data
+        # clear gradients
+        net.zero_grad()
+        # forward pass
+        output = net(X.view(-1, 28 * 28))
+        # calc loss
+        loss = F.nll_loss(output, y)
+        # backpropagation
+        loss.backward()
+        # adjust weights
+        optimizer.step()
+    print(loss)
+
+# test accuracy
+correct = 0
+total = 0
+
+with torch.no_grad():
+    for data in trainSet:
+        X, y = data
+        output = net(X.view(-1, 28 * 28))
+        for idx, i in enumerate(output):
+            if torch.argmax(i) == y[idx]:
+                correct += 1
+            total += 1
+
+print("accuracy: ", correct / total * 100)
