@@ -54,6 +54,7 @@ output = net(X)
 
 optimizer = optim.Adam(net.parameters(), lr=0.001)
 
+
 # iterations through full dataset
 EPOCHS = 3
 
@@ -71,6 +72,7 @@ for epoch in range(EPOCHS):
         # adjust weights
         optimizer.step()
     print(loss)
+
 
 # test accuracy
 correct = 0
